@@ -40,6 +40,8 @@ int main(int argc, char **argv) {
   char server_ip[16];
   char username[256];
   char password[256];
+  char filename[256];
+  FILE *fp;
 
   if (argc != 3) {
     fprintf(stderr, "Usage: ./client <server_ip> <port>\n");
@@ -86,6 +88,32 @@ int main(int argc, char **argv) {
     scanf("%s", password);
     sprintf(buffer, "%s", password);
     send(sockfd, buffer, strlen(password), 0);
+
+    /* Server will send authentication status. */
+    bzero(buffer, BUFLEN);
+    read(sockfd, buffer, BUFLEN);
+    if (!strcmp(buffer, "Client authenticated")) {
+      printf("+----------------------------+\n"
+             "| Successfully authenticated |\n"
+             "+----------------------------+\n");
+      printf("Enter the filename: ");
+      scanf("%s", filename);
+      bzero(buffer, BUFLEN);
+      sprintf(buffer, "%s", filename);
+      fp = fopen(filename, "w");
+      send(sockfd, buffer, strlen(buffer), 0);
+
+      /* Receive file from server. */
+      bzero(buffer, strlen(buffer));
+      read(sockfd, buffer, BUFLEN);
+      printf("+------------------------+\n"
+             "| File transfer complete |\n"
+             "+------------------------+\n");
+      fwrite(buffer, 1, strlen(buffer), fp);
+      fclose(fp);
+    }
+    else
+      printf("%s", buffer);
   }
 
   else {

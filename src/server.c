@@ -6,7 +6,6 @@ uint16_t make_socket(uint16_t);
 void process(uint16_t);
 
 /* TODO Fix globals */
-struct sockaddr_storage serverStorage;
 struct sockaddr_in client;
 char buffer[256];
 
@@ -43,8 +42,12 @@ uint16_t make_socket(uint16_t port) {
 
 void process(uint16_t sockfd) {
   int bytes_read;
+  int invalid = 0;
   char username[256];
   char password[256];
+  char base_dir[256] = "./serve/";
+  FILE *fp;
+  void *p;
 
   while(1) {
     bzero(buffer, BUFLEN);
@@ -67,10 +70,56 @@ void process(uint16_t sockfd) {
       if (!strcmp(buffer, "shivansh")) {
         bzero(buffer, BUFLEN);
         read(sockfd, buffer, BUFLEN);
+        /* Authenticate the client's password. */
         if (!strcmp(buffer, "rai")) {
-          printf("Client authenticated");
+          sprintf(buffer, "%s", "Client authenticated");
+          send(sockfd, buffer, strlen(buffer), 0);
+
+          /* Client will now send the filename. */
+          bzero(buffer, BUFLEN);
+          read(sockfd, buffer, BUFLEN);
+
+          /* Check if file exists. */
+          strcat(base_dir, buffer);
+          if (!access(base_dir, F_OK)) {
+            sprintf(buffer, "%s", "+-------------------+\n"
+                                  "| Starting transfer |\n"
+                                  "+-------------------+");
+            /* send(sockfd, buffer, strlen(buffer), 0); */
+
+            fp = fopen(base_dir, "r");
+            bytes_read = fread(buffer, 1, sizeof(buffer), fp);
+
+            p = buffer;
+            while (bytes_read > 0) {
+              int bytes_written = send(sockfd, p, bytes_read, 0);
+              bytes_read -= bytes_written;
+              p += bytes_written;
+            }
+
+            fclose(fp);
+          }
+
+          else {
+            sprintf(buffer, "%s", "+---------------------+\n"
+                                  "| File does not exist |\n"
+                                  "+---------------------+");
+            /* send(sockfd, buffer, strlen(buffer), 0); */
+            printf("%s\n", buffer);
+          }
         }
+
+        else invalid = 1;
       }
+
+      else invalid = 1;
+    }
+
+    if (invalid) {
+      sprintf(buffer, "%s", "+----------------------------------+\n"
+                            "| Invalid username and/or password |\n"
+                            "+----------------------------------+");
+      send(sockfd, buffer, strlen(buffer), 0);
     }
   }
 }
@@ -83,6 +132,7 @@ int main(int argc, char **argv) {
   int status;
   pid_t pid;
   pid_t result;
+  struct sockaddr_storage serverStorage;
 
   /* Disable buffering on stdout stream. */
   setbuf(stdout, NULL);
