@@ -8,7 +8,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#define BUFLEN 128
+#define BUFLEN 32
 
 void int_handler(int sockfd) {
   /* Handle SIGINT (Ctrl+C). */

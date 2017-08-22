@@ -7,7 +7,7 @@ void process(uint16_t);
 
 /* TODO Fix globals */
 struct sockaddr_in client;
-char buffer[256];
+char buffer[BUFLEN];
 
 uint16_t make_socket(uint16_t port) {
   /* Subroutine to bidn a socket with the machine
@@ -91,14 +91,18 @@ void process(uint16_t sockfd) {
 
             bzero(buffer, BUFLEN);
             fp = fopen(base_dir, "r");
-            bytes_read = fread(buffer, 1, sizeof(buffer), fp);
+            /* bytes_read = fread(buffer, 1, sizeof(buffer), fp); */
 
-            p = buffer;
-            while (bytes_read > 0) {
-              int bytes_written = send(sockfd, p, bytes_read, 0);
-              bytes_read -= bytes_written;
-              p += bytes_written;
+            int counter = 0;
+            int bytes_written;
+            while ((bytes_read = fread(buffer, 1, sizeof(buffer), fp)) > 0) {
+              /* p = buffer; */
+              bytes_written = send(sockfd, buffer, bytes_read, 0);
+              /* bytes_read -= bytes_written; */
+              /* p += bytes_written; */
+              counter += bytes_written;
             }
+            printf("%d\n", counter);
 
             fclose(fp);
           }

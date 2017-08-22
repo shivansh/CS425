@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
   int bytes_read;
   int server_port;
   uint16_t sockfd;
-  char buffer[256];
+  char buffer[BUFLEN];
   char server_ip[16];
   char username[256];
   char password[256];
@@ -90,20 +90,31 @@ int main(int argc, char **argv) {
 
       /* Receive file transfer initiation cue. */
       if (!strcmp(buffer, "Initiating")) {
-        fp = fopen(filename, "w");
+        fp = fopen(filename, "a");
         printf("+--------------------------+\n"
                "| Initiating file transfer |\n"
                "+--------------------------+\n");
 
         /* Receive file from server. */
         bzero(buffer, strlen(buffer));
-        int bytes_read = read(sockfd, buffer, BUFLEN);
+        /* int bytes_read = read(sockfd, buffer, BUFLEN); */
 
-        void *p = buffer;
-        while (bytes_read > 0) {
-          int bytes_written = fwrite(p, 1, sizeof(p), fp);
-          bytes_read -= bytes_written;
-          p += bytes_written;
+        void *p;
+        int bytes_written;
+        while(1) {
+          int bytes_read = read(sockfd, buffer, BUFLEN);
+          if (bytes_read == 0)
+            break;
+
+          if (bytes_read < 0) {}
+
+          p = buffer;
+          while (bytes_read > 0) {
+            bytes_written = fwrite(p, strlen(p), 1, fp);
+            if (bytes_written < 0) {}
+            bytes_read -= bytes_written;
+            p += bytes_written;
+          }
         }
 
         printf("+------------------------+\n"

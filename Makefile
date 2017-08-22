@@ -3,6 +3,7 @@ SRC=	./src
 OBJ=	./obj
 INCLUDE=./include
 CFLAGS=	-I$(INCLUDE)
+_DEPS = standard.h
 DEPS=	$(patsubst %, $(INCLUDE)/%, $(_DEPS))
 
 all:
