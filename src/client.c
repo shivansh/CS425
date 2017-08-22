@@ -62,22 +62,6 @@ int main(int argc, char **argv) {
      */
     sockfd = make_socket(server_ip, server_port);
     bzero(buffer, BUFLEN);
-    bytes_read = read(sockfd, buffer, BUFLEN);
-
-    if (bytes_read < 0) {
-      fprintf(stderr, "Error while reading from socket\n");
-      exit(EXIT_FAILURE);
-    }
-
-    else if (bytes_read == 0) {
-      /* Server has terminated the connection. */
-      close_sock(sockfd, "server");
-    }
-
-    else {
-      /* TODO Safely print data instead of dumping. */
-      printf("%s", buffer);
-    }
 
     /* Get the username and password from client. */
     printf("Username: ");
@@ -92,25 +76,46 @@ int main(int argc, char **argv) {
     /* Server will send authentication status. */
     bzero(buffer, BUFLEN);
     read(sockfd, buffer, BUFLEN);
-    if (!strcmp(buffer, "Client authenticated")) {
-      printf("+----------------------------+\n"
-             "| Successfully authenticated |\n"
-             "+----------------------------+\n");
+    if (!strncmp(buffer, "Hello", 5)) {
+      printf("%s\n", buffer);
+
       printf("Enter the filename: ");
       scanf("%s", filename);
       bzero(buffer, BUFLEN);
       sprintf(buffer, "%s", filename);
-      fp = fopen(filename, "w");
       send(sockfd, buffer, strlen(buffer), 0);
 
-      /* Receive file from server. */
       bzero(buffer, strlen(buffer));
       read(sockfd, buffer, BUFLEN);
-      printf("+------------------------+\n"
-             "| File transfer complete |\n"
-             "+------------------------+\n");
-      fwrite(buffer, 1, strlen(buffer), fp);
-      fclose(fp);
+
+      /* Receive file transfer initiation cue. */
+      if (!strcmp(buffer, "Initiating")) {
+        fp = fopen(filename, "w");
+        printf("+--------------------------+\n"
+               "| Initiating file transfer |\n"
+               "+--------------------------+\n");
+
+        /* Receive file from server. */
+        bzero(buffer, strlen(buffer));
+        int bytes_read = read(sockfd, buffer, BUFLEN);
+
+        void *p = buffer;
+        while (bytes_read > 0) {
+          int bytes_written = fwrite(p, 1, sizeof(p), fp);
+          bytes_read -= bytes_written;
+          p += bytes_written;
+        }
+
+        printf("+------------------------+\n"
+               "| File transfer complete |\n"
+               "+------------------------+\n");
+        /* fwrite(buffer, 1, strlen(buffer), fp); */
+        fclose(fp);
+      }
+
+      else
+        printf("%s", buffer);
+
     }
     else
       printf("%s", buffer);

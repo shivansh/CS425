@@ -67,12 +67,15 @@ void process(uint16_t sockfd) {
     else {
       /* Safely print data instead of dumping. */
       /* Authenticate the client's username. */
+      sprintf(username, "%s", buffer);
       if (!strcmp(buffer, "shivansh")) {
         bzero(buffer, BUFLEN);
         read(sockfd, buffer, BUFLEN);
+        sprintf(password, "%s", buffer);
+
         /* Authenticate the client's password. */
         if (!strcmp(buffer, "rai")) {
-          sprintf(buffer, "%s", "Client authenticated");
+          sprintf(buffer, "Hello %s", username);
           send(sockfd, buffer, strlen(buffer), 0);
 
           /* Client will now send the filename. */
@@ -82,11 +85,11 @@ void process(uint16_t sockfd) {
           /* Check if file exists. */
           strcat(base_dir, buffer);
           if (!access(base_dir, F_OK)) {
-            sprintf(buffer, "%s", "+-------------------+\n"
-                                  "| Starting transfer |\n"
-                                  "+-------------------+");
-            /* send(sockfd, buffer, strlen(buffer), 0); */
+            /* Send file transfer initiation cue. */
+            sprintf(buffer, "%s", "Initiating");
+            send(sockfd, buffer, strlen(buffer), 0);
 
+            bzero(buffer, BUFLEN);
             fp = fopen(base_dir, "r");
             bytes_read = fread(buffer, 1, sizeof(buffer), fp);
 
@@ -101,11 +104,10 @@ void process(uint16_t sockfd) {
           }
 
           else {
-            sprintf(buffer, "%s", "+---------------------+\n"
-                                  "| File does not exist |\n"
-                                  "+---------------------+");
-            /* send(sockfd, buffer, strlen(buffer), 0); */
-            printf("%s\n", buffer);
+            sprintf(buffer, "%s", "+----------------+\n"
+                                  "| File not found |\n"
+                                  "+----------------+");
+            send(sockfd, buffer, strlen(buffer), 0);
           }
         }
 
@@ -116,9 +118,9 @@ void process(uint16_t sockfd) {
     }
 
     if (invalid) {
-      sprintf(buffer, "%s", "+----------------------------------+\n"
-                            "| Invalid username and/or password |\n"
-                            "+----------------------------------+");
+      sprintf(buffer, "%s", "+---------------------------+\n"
+                            "| Authentication failure!!! |\n"
+                            "+---------------------------+");
       send(sockfd, buffer, strlen(buffer), 0);
     }
   }
@@ -174,11 +176,6 @@ int main(int argc, char **argv) {
 
     else if (pid == 0) {
       /* This is the child process. */
-
-      sprintf(buffer, "+-------------------+\n"
-                      "| Hello from server |\n"
-                      "+-------------------+\n");
-      write(client_sockfd, buffer, BUFLEN);
       process(client_sockfd);
       close(client_sockfd);
       exit(EXIT_SUCCESS);
