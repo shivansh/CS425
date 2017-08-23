@@ -1,16 +1,23 @@
 #include "standard.h"
 
-uint16_t make_socket(char*, uint16_t);
+uint16_t sockfd;
 
-uint16_t make_socket(char *server_ip, uint16_t port) {
+void make_socket(char*, uint16_t);
+
+void int_handler() {
+  /* Handle SIGINT (Ctrl+C). */
+  close(sockfd);
+  exit(EXIT_FAILURE);
+}
+
+void make_socket(char *server_ip, uint16_t port) {
   /* Subroutine to connect a socket with the machine
    * address and return its file descriptor.
    */
-  uint16_t sock;
   struct sockaddr_in server;
 
-  sock = socket(PF_INET, SOCK_STREAM, 0);
-  if (sock < 0) {
+  sockfd = socket(PF_INET, SOCK_STREAM, 0);
+  if (sockfd < 0) {
     fprintf(stderr, "Socket instantiation unsuccessful\n");
     exit(EXIT_FAILURE);
   }
@@ -20,39 +27,43 @@ uint16_t make_socket(char *server_ip, uint16_t port) {
   server.sin_port = htons(port);
   server.sin_addr.s_addr = inet_addr(server_ip);
 
-  if (connect(sock, (struct sockaddr*)&server, sizeof(server)) < 0) {
+  if (connect(sockfd, (struct sockaddr*)&server, sizeof(server)) < 0) {
     fprintf(stderr, "Error while connecting socket ");
     exit(EXIT_FAILURE);
   }
 
   printf("Socket connected to server at port %d\n", port);
-  return sock;
 }
 
 int main(int argc, char **argv) {
   int pid;
-  int retval;
-  int flag;
-  int bytes_read;
+  int wstatus;
   int server_port;
-  uint16_t sockfd;
-  char buffer[BUFLEN];
+  int bytes_read;
+  int bytes_written;
   char server_ip[16];
-  char username[BUFLEN];
-  char password[BUFLEN];
-  char filename[BUFLEN];
+  char username[256];
+  char password[256];
+  char filename[256];
+  char buffer[BUFLEN];
   FILE *fp;
 
+  /* Disable buffering on standard output stream. */
+  setbuf(stdout, NULL);
+
+  /* Handle interrupts */
+  signal(SIGINT, int_handler);
+
   if (argc != 3) {
-    fprintf(stderr, "Usage: ./client <server_ip> <port>\n");
+    fprintf(stderr, "Usage: ./client username:password@<server_ip> <port>\n");
     exit(EXIT_FAILURE);
   }
 
-  sprintf(server_ip, "%s", argv[1]);
   server_port = atoi(argv[2]);
 
   if ((pid = fork()) < 0) {
     fprintf(stderr, "Error on fork\n");
+    close_sock(sockfd, "server");
     exit(EXIT_FAILURE);
   }
 
@@ -60,22 +71,52 @@ int main(int argc, char **argv) {
     /* This is the child process. It establishes a connection
      * with the server while parent process 'wait()'s on it.
      */
-    sockfd = make_socket(server_ip, server_port);
+
+    int i = 0;
+    bzero(username, sizeof(username));
+    while (argv[1][i] != ':') {
+      username[i] = argv[1][i];
+      i++;
+    }
+    i++;
+
+    int j = 0;
+    bzero(password, sizeof(password));
+    while (argv[1][i] != '@') {
+      password[j] = argv[1][i];
+      i++;
+      j++;
+    }
+    i++;
+
+    j = 0;
+    bzero(server_ip, 16);
+    while(argv[1][i] != '\0') {
+      server_ip[j] = argv[1][i];
+      i++;
+      j++;
+    }
+
+    make_socket(server_ip, server_port);
     bzero(buffer, BUFLEN);
 
     /* Get the username and password from client. */
-    printf("Username: ");
-    scanf("%s", username);
     sprintf(buffer, "%s", username);
     send(sockfd, buffer, strlen(username), 0);
-    printf("Password: ");
-    scanf("%s", password);
+    bzero(buffer, BUFLEN);
+
+    /* Wait for half a second so that the
+     * server processes the username.
+     */
+    usleep(500000);
     sprintf(buffer, "%s", password);
     send(sockfd, buffer, strlen(password), 0);
 
     /* Server will send authentication status. */
     bzero(buffer, BUFLEN);
-    read(sockfd, buffer, BUFLEN);
+    if (safe_read(sockfd, buffer))
+      exit(EXIT_SUCCESS);
+
     if (!strncmp(buffer, "Hello", 5)) {
       printf("%s\n", buffer);
       bzero(buffer, BUFLEN);
@@ -83,37 +124,36 @@ int main(int argc, char **argv) {
       printf("Enter the filename: ");
       scanf("%s", filename);
       sprintf(buffer, "%s", filename);
-      send(sockfd, buffer, strlen(buffer), 0);
+      send(sockfd, buffer, BUFLEN, 0);
 
       bzero(buffer, BUFLEN);
-      read(sockfd, buffer, BUFLEN);
+      if (safe_read(sockfd, buffer))
+        exit(EXIT_SUCCESS);
 
       /* Receive file transfer initiation cue. */
-      if (!strcmp(buffer, "Initiating")) {
+      if (!strncmp(buffer, "Initiating", 10)) {
         fp = fopen(filename, "w");
         printf("+--------------------------+\n"
                "| Initiating file transfer |\n"
                "+--------------------------+\n");
 
-        /* Receive file from server. */
+        /* Receive file from server in chunks. */
 
-        void *p;
-        int bytes_read;
         while(1) {
           bzero(buffer, BUFLEN);
           bytes_read = read(sockfd, buffer, BUFLEN);
 
           if (bytes_read < 0) {
-            fprintf(stderr, "Error while reading\n");
-            break;
+            fprintf(stderr, "Error while reading from socket\n");
+            continue;
           }
 
           if (bytes_read < BUFLEN) {
-            fwrite(buffer, bytes_read, 1, fp);
+            safe_write(buffer, bytes_read, fp);
             break;
           }
 
-          fwrite(buffer, sizeof(buffer), 1, fp);
+          safe_write(buffer, bytes_read, fp);
         }
 
         printf("+------------------------+\n"
@@ -124,8 +164,8 @@ int main(int argc, char **argv) {
 
       else
         printf("%s", buffer);
-
     }
+
     else
       printf("%s", buffer);
   }
@@ -134,8 +174,8 @@ int main(int argc, char **argv) {
     /* Parent process waits until the client
      * finishes communication with the server.
      */
-    waitpid(pid, &retval, 0);
-    if (retval != 0)
+    waitpid(pid, &wstatus, 0);
+    if (wstatus != 0)
       fprintf(stderr, "Child process terminated with an error!\n");
 
     close_sock(sockfd, "server");

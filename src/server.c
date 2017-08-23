@@ -2,18 +2,23 @@
 
 #define MAX_CONN 5
 
-uint16_t make_socket(uint16_t);
-void process(uint16_t);
-
-/* TODO Fix globals */
+uint16_t sockfd;
 struct sockaddr_in client;
 char buffer[BUFLEN];
 
-uint16_t make_socket(uint16_t port) {
+void make_socket(uint16_t);
+void process(uint16_t);
+
+void int_handler() {
+  /* Handle SIGINT (Ctrl+C). */
+  close(sockfd);
+  exit(EXIT_FAILURE);
+}
+
+void make_socket(uint16_t port) {
   /* Subroutine to bidn a socket with the machine
    * address and return its file descriptor.
    */
-  uint16_t sockfd;
 
   sockfd = socket(PF_INET, SOCK_STREAM, 0);
 
@@ -22,7 +27,6 @@ uint16_t make_socket(uint16_t port) {
     exit(EXIT_FAILURE);
   }
 
-  /* TODO Add logging functionality */
   printf("Socket instantiated\n");
   /* The htons() function converts from
    * host byte order to network byte order.
@@ -37,87 +41,74 @@ uint16_t make_socket(uint16_t port) {
   }
 
   printf("Socket bound to port %d\n", port);
-  return sockfd;
 }
 
 void process(uint16_t sockfd) {
   int bytes_read;
   int invalid = 0;
-  char username[BUFLEN];
-  char password[BUFLEN];
-  char base_dir[BUFLEN] = "./serve/";
+  char username[256];
+  char password[256];
+  char base_dir[256] = "./serve/";
   FILE *fp;
-  void *p;
 
+  bzero(buffer, BUFLEN);
   while(1) {
-    bzero(buffer, BUFLEN);
-    bytes_read = read(sockfd, buffer, BUFLEN);
-
-    if (bytes_read < 0) {
-      fprintf(stderr, "Error while reading from socket\n");
-      exit(EXIT_FAILURE);
-    }
-
-    else if (bytes_read == 0) {
-      /* Client has terminated the connection. */
-      close_sock(sockfd, "client");
+    if (safe_read(sockfd, buffer))
       break;
-    }
 
-    else {
-      /* Safely print data instead of dumping. */
-      /* Authenticate the client's username. */
-      sprintf(username, "%s", buffer);
-      if (!strcmp(buffer, "shivansh")) {
+    /* Safely print data instead of dumping. */
+    /* Authenticate the client's username. */
+    sprintf(username, "%s", buffer);
+    if (!strcmp(buffer, "shivansh")) {
+      bzero(buffer, BUFLEN);
+      if (safe_read(sockfd, buffer))
+        break;
+      sprintf(password, "%s", buffer);
+
+      /* Authenticate the client's password. */
+      if (!strcmp(password, "rai")) {
+        sprintf(buffer, "Hello %s", username);
+        send(sockfd, buffer, BUFLEN, 0);
+
+        /* Client will now send the filename. */
         bzero(buffer, BUFLEN);
-        read(sockfd, buffer, BUFLEN);
-        sprintf(password, "%s", buffer);
+        if (safe_read(sockfd, buffer))
+          break;
 
-        /* Authenticate the client's password. */
-        if (!strcmp(password, "rai")) {
-          sprintf(buffer, "Hello %s", username);
-          send(sockfd, buffer, strlen(buffer), 0);
+        /* Check if file exists. */
+        strcat(base_dir, buffer);
+        if (!access(base_dir, F_OK)) {
+          /* Send file transfer initiation cue. */
+          sprintf(buffer, "%s", "Initiating");
+          send(sockfd, buffer, BUFLEN, 0);
 
-          /* Client will now send the filename. */
           bzero(buffer, BUFLEN);
-          read(sockfd, buffer, BUFLEN);
+          fp = fopen(base_dir, "r");
 
-          /* Check if file exists. */
-          strcat(base_dir, buffer);
-          if (!access(base_dir, F_OK)) {
-            /* Send file transfer initiation cue. */
-            sprintf(buffer, "%s", "Initiating");
-            send(sockfd, buffer, strlen(buffer), 0);
-
+          /* Start sending the file in chunks. */
+          int counter = 0;
+          int bytes_written;
+          while ((bytes_read = fread(buffer, 1, sizeof(buffer), fp)) > 0) {
+            bytes_written = send(sockfd, buffer, bytes_read, 0);
+            /* Clear the buffer in case the size of next
+             * read is less than the buffer size BUFLEN.
+             */
             bzero(buffer, BUFLEN);
-            fp = fopen(base_dir, "r");
-
-            int counter = 0;
-            int bytes_written;
-            while ((bytes_read = fread(buffer, 1, sizeof(buffer), fp)) > 0) {
-              bytes_written = send(sockfd, buffer, bytes_read, 0);
-              /* Clear the buffer in case the size of next
-               * read is less than the buffer size BUFLEN.
-               */
-              bzero(buffer, BUFLEN);
-            }
-
-            fclose(fp);
           }
 
-          else {
-            bzero(buffer, BUFLEN);
-            sprintf(buffer, "%s", "+----------------+\n"
-                                  "| File not found |\n"
-                                  "+----------------+");
-            send(sockfd, buffer, strlen(buffer), 0);
-          }
+          fclose(fp);
         }
 
-        else invalid = 1;
+        else {
+          bzero(buffer, BUFLEN);
+          sprintf(buffer, "%s", "+----------------+\n"
+                                "| File not found |\n"
+                                "+----------------+");
+          send(sockfd, buffer, BUFLEN, 0);
+        }
       }
 
-      else invalid = 1;
+    else invalid = 1;
     }
 
     if (invalid) {
@@ -125,27 +116,27 @@ void process(uint16_t sockfd) {
       sprintf(buffer, "%s", "+---------------------------+\n"
                             "| Authentication failure!!! |\n"
                             "+---------------------------+");
-      send(sockfd, buffer, strlen(buffer), 0);
+      send(sockfd, buffer, BUFLEN, 0);
     }
+
+    bzero(buffer, BUFLEN);
   }
 }
 
 int main(int argc, char **argv) {
   uint16_t port;
-  uint16_t sockfd;
   uint16_t client_sockfd;
   int client_len;
-  int status;
+  int wstatus;
   pid_t pid;
   pid_t result;
   struct sockaddr_storage serverStorage;
 
-  /* Disable buffering on stdout stream. */
+  /* Disable buffering on standard output stream. */
   setbuf(stdout, NULL);
 
   /* Handle interrupts */
-  /* signal(SIGINT, int_handler(sockfd)); */
-  /* signal(SIGCHLD, SIG_IGN); */
+  signal(SIGINT, int_handler);
 
   if (argc != 2) {
     fprintf(stderr, "Usage: ./server <PORT>\nExiting!\n");
@@ -153,7 +144,7 @@ int main(int argc, char **argv) {
   }
 
   port   = atoi(argv[1]);
-  sockfd = make_socket(port);
+  make_socket(port);
 
   if (listen(sockfd, MAX_CONN) == 0)
     printf("Listening on port %d\n", port);
@@ -174,7 +165,7 @@ int main(int argc, char **argv) {
 
     if ((pid = fork()) < 0) {
       fprintf(stderr, "Error on fork\n");
-      close_sock(client_sockfd, "client");
+      close(client_sockfd);
       exit(EXIT_FAILURE);
     }
 
@@ -189,14 +180,14 @@ int main(int argc, char **argv) {
       /* This is the parent process.
        * We return immediately if no child has exited.
        */
-      result = waitpid(pid, &status, WNOHANG);
+      result = waitpid(pid, &wstatus, WNOHANG);
       close(client_sockfd);
     }
 
-    /* Sleep for half second. */
-    sleep(1);
+    /* Sleep for half a second. */
+    usleep(500000);
   }
 
-  close(sockfd);
+  close_sock(sockfd, "client");
   return 0;
 }

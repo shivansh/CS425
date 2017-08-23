@@ -10,30 +10,36 @@
 
 #define BUFLEN 1024
 
-void int_handler(int sockfd) {
-  /* Handle SIGINT (Ctrl+C). */
-  close(sockfd);
-  exit(EXIT_FAILURE);
-}
-
 void close_sock(uint16_t sockfd, char *node) {
   fprintf(stderr, "\nDisconnecting with %s...\n", node);
   close(sockfd);
 }
 
-void safe_read(uint16_t sockfd, char *buffer) {
+int safe_read(uint16_t sockfd, char *buffer) {
   int bytes_read;
 
   bytes_read = read(sockfd, buffer, BUFLEN);
-
   if (bytes_read < 0) {
     fprintf(stderr, "Error while reading from socket\n");
     exit(EXIT_FAILURE);
   }
 
   else if (bytes_read == 0) {
-    /* Client has terminated the connection. */
+    /* Connection terminated. */
+    fprintf(stderr, "Connection terminated.");
     close_sock(sockfd, "client");
-    /* How to put break here ? */
+    return 1;
+  }
+
+  return 0;
+}
+
+void safe_write(char *buffer, int bytes_read, FILE *fp) {
+  int bytes_written;
+
+  while(1) {
+    bytes_written = fwrite(buffer, 1, bytes_read, fp);
+    if (bytes_written == bytes_read)
+      break;
   }
 }
