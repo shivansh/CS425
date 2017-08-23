@@ -8,7 +8,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#define BUFLEN 1024
+#define BUFSIZE 1024
 
 void close_sock(uint16_t sockfd, char *node) {
   fprintf(stderr, "\nDisconnecting with %s...\n", node);
@@ -18,7 +18,7 @@ void close_sock(uint16_t sockfd, char *node) {
 int safe_read(uint16_t sockfd, char *buffer) {
   int bytes_read;
 
-  bytes_read = read(sockfd, buffer, BUFLEN);
+  bytes_read = read(sockfd, buffer, BUFSIZE);
   if (bytes_read < 0) {
     fprintf(stderr, "Error while reading from socket\n");
     exit(EXIT_FAILURE);

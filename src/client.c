@@ -2,15 +2,15 @@
 
 uint16_t sockfd;
 
-void make_socket(char*, uint16_t);
-
-void int_handler() {
+void
+int_handler() {
   /* Handle SIGINT (Ctrl+C). */
   close(sockfd);
   exit(EXIT_FAILURE);
 }
 
-void make_socket(char *server_ip, uint16_t port) {
+void
+make_socket(char *server_ip, uint16_t port) {
   /* Subroutine to connect a socket with the machine
    * address and return its file descriptor.
    */
@@ -18,34 +18,35 @@ void make_socket(char *server_ip, uint16_t port) {
 
   sockfd = socket(PF_INET, SOCK_STREAM, 0);
   if (sockfd < 0) {
-    fprintf(stderr, "Socket instantiation unsuccessful\n");
+    fprintf(stderr, "Socket instantiation unsuccessful: ");
     exit(EXIT_FAILURE);
   }
 
   printf("Socket instantiated\n");
-  server.sin_family = AF_INET;
-  server.sin_port = htons(port);
+  server.sin_family      = AF_INET;
+  server.sin_port        = htons(port);
   server.sin_addr.s_addr = inet_addr(server_ip);
 
   if (connect(sockfd, (struct sockaddr*)&server, sizeof(server)) < 0) {
-    fprintf(stderr, "Error while connecting socket ");
+    fprintf(stderr, "Error while connecting socket: ");
     exit(EXIT_FAILURE);
   }
 
   printf("Socket connected to server at port %d\n", port);
 }
 
-int main(int argc, char **argv) {
-  int pid;
-  int wstatus;
-  int server_port;
-  int bytes_read;
-  int bytes_written;
+int
+main(int argc, char **argv) {
+  int  pid;
+  int  server_port;
+  int  wstatus;
+  int  bytes_read;
+  int  bytes_written;
   char server_ip[16];
-  char username[256];
   char password[256];
+  char username[256];
   char filename[256];
-  char buffer[BUFLEN];
+  char buffer[BUFSIZE];
   FILE *fp;
 
   /* Disable buffering on standard output stream. */
@@ -72,6 +73,7 @@ int main(int argc, char **argv) {
      * with the server while parent process 'wait()'s on it.
      */
 
+    /* Extract username, password and server IP from argv[1]. */
     int i = 0;
     bzero(username, sizeof(username));
     while (argv[1][i] != ':') {
@@ -90,7 +92,7 @@ int main(int argc, char **argv) {
     i++;
 
     j = 0;
-    bzero(server_ip, 16);
+    bzero(server_ip, sizeof(server_ip));
     while(argv[1][i] != '\0') {
       server_ip[j] = argv[1][i];
       i++;
@@ -98,12 +100,12 @@ int main(int argc, char **argv) {
     }
 
     make_socket(server_ip, server_port);
-    bzero(buffer, BUFLEN);
+    bzero(buffer, BUFSIZE);
 
     /* Get the username and password from client. */
     sprintf(buffer, "%s", username);
     send(sockfd, buffer, strlen(username), 0);
-    bzero(buffer, BUFLEN);
+    bzero(buffer, BUFSIZE);
 
     /* Wait for half a second so that the
      * server processes the username.
@@ -113,20 +115,20 @@ int main(int argc, char **argv) {
     send(sockfd, buffer, strlen(password), 0);
 
     /* Server will send authentication status. */
-    bzero(buffer, BUFLEN);
+    bzero(buffer, BUFSIZE);
     if (safe_read(sockfd, buffer))
       exit(EXIT_SUCCESS);
 
     if (!strncmp(buffer, "Hello", 5)) {
       printf("%s\n", buffer);
-      bzero(buffer, BUFLEN);
+      bzero(buffer, BUFSIZE);
 
       printf("Enter the filename: ");
       scanf("%s", filename);
       sprintf(buffer, "%s", filename);
-      send(sockfd, buffer, BUFLEN, 0);
+      send(sockfd, buffer, BUFSIZE, 0);
 
-      bzero(buffer, BUFLEN);
+      bzero(buffer, BUFSIZE);
       if (safe_read(sockfd, buffer))
         exit(EXIT_SUCCESS);
 
@@ -137,18 +139,18 @@ int main(int argc, char **argv) {
                "| Initiating file transfer |\n"
                "+--------------------------+\n");
 
-        /* Receive file from server in chunks. */
+        /* Receive file from the server in chunks. */
 
         while(1) {
-          bzero(buffer, BUFLEN);
-          bytes_read = read(sockfd, buffer, BUFLEN);
+          bzero(buffer, BUFSIZE);
+          bytes_read = read(sockfd, buffer, BUFSIZE);
 
           if (bytes_read < 0) {
             fprintf(stderr, "Error while reading from socket\n");
             continue;
           }
 
-          if (bytes_read < BUFLEN) {
+          if (bytes_read < BUFSIZE) {
             safe_write(buffer, bytes_read, fp);
             break;
           }

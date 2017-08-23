@@ -1,21 +1,21 @@
 #include "standard.h"
 
 #define MAX_CONN 5
+#define BASEDIR "./serve/"
 
 uint16_t sockfd;
 struct sockaddr_in client;
-char buffer[BUFLEN];
+char buffer[BUFSIZE];
 
-void make_socket(uint16_t);
-void process(uint16_t);
-
-void int_handler() {
+void
+int_handler() {
   /* Handle SIGINT (Ctrl+C). */
   close(sockfd);
   exit(EXIT_FAILURE);
 }
 
-void make_socket(uint16_t port) {
+void
+make_socket(char *server_ip, uint16_t port) {
   /* Subroutine to bidn a socket with the machine
    * address and return its file descriptor.
    */
@@ -23,7 +23,7 @@ void make_socket(uint16_t port) {
   sockfd = socket(PF_INET, SOCK_STREAM, 0);
 
   if (sockfd < 0) {
-    perror("Socket instantiation unsuccessful ");
+    perror("Socket instantiation unsuccessful: ");
     exit(EXIT_FAILURE);
   }
 
@@ -33,25 +33,64 @@ void make_socket(uint16_t port) {
    */
   client.sin_family      = AF_INET;
   client.sin_port        = htons(port);
-  client.sin_addr.s_addr = inet_addr("127.0.0.1");
+  client.sin_addr.s_addr = inet_addr(server_ip);
 
   if (bind(sockfd, (struct sockaddr*)&client, sizeof(client)) < 0) {
-    perror("Error while binding socket ");
+    perror("Error while binding socket: ");
     exit(EXIT_FAILURE);
   }
 
   printf("Socket bound to port %d\n", port);
 }
 
-void process(uint16_t sockfd) {
-  int bytes_read;
-  int invalid = 0;
+char*
+read_line(FILE *fp) {
+  char *buffer;
+  char *tmp;
+  int read_chars = 0;
+  int bufsize = BUFSIZE;
+  char *line = malloc(bufsize);
+
+  if ( !line ) {
+    return NULL;
+  }
+
+  buffer = line;
+
+  while ( fgets(buffer, bufsize - read_chars, fp) ) {
+    read_chars = strlen(line);
+
+    if ( line[read_chars - 1] == '\n' ) {
+      line[read_chars - 1] = '\0';
+      return line;
+    }
+
+    else {
+      bufsize = 2 * bufsize;
+      tmp = realloc(line, bufsize);
+      if ( tmp ) {
+	line = tmp;
+	buffer = line + read_chars;
+      }
+      else {
+	free(line);
+	return NULL;
+      }
+    }
+  }
+  return NULL;
+}
+
+void
+process(uint16_t sockfd) {
+  int  bytes_read;
+  int  invalid = 0;
   char username[256];
   char password[256];
-  char base_dir[256] = "./serve/";
+  char base_dir[256] = BASEDIR;
   FILE *fp;
 
-  bzero(buffer, BUFLEN);
+  bzero(buffer, BUFSIZE);
   while(1) {
     if (safe_read(sockfd, buffer))
       break;
@@ -59,77 +98,92 @@ void process(uint16_t sockfd) {
     /* Safely print data instead of dumping. */
     /* Authenticate the client's username. */
     sprintf(username, "%s", buffer);
-    if (!strcmp(buffer, "shivansh")) {
-      bzero(buffer, BUFLEN);
-      if (safe_read(sockfd, buffer))
-        break;
-      sprintf(password, "%s", buffer);
+    FILE *user_fp;
+    char *line;
 
-      /* Authenticate the client's password. */
-      if (!strcmp(password, "rai")) {
-        sprintf(buffer, "Hello %s", username);
-        send(sockfd, buffer, BUFLEN, 0);
-
-        /* Client will now send the filename. */
-        bzero(buffer, BUFLEN);
+    user_fp = fopen("users.txt", "r");
+    while( line = read_line(user_fp) ) {
+      if (strstr(line, username)) {
+        bzero(buffer, BUFSIZE);
         if (safe_read(sockfd, buffer))
           break;
 
-        /* Check if file exists. */
-        strcat(base_dir, buffer);
-        if (!access(base_dir, F_OK)) {
-          /* Send file transfer initiation cue. */
-          sprintf(buffer, "%s", "Initiating");
-          send(sockfd, buffer, BUFLEN, 0);
+        sprintf(password, "%s", buffer);
+        if (strstr(line, password)) {
+          sprintf(buffer, "Hello %s", username);
+          send(sockfd, buffer, BUFSIZE, 0);
 
-          bzero(buffer, BUFLEN);
-          fp = fopen(base_dir, "r");
+          /* Client will now send the filename. */
+          bzero(buffer, BUFSIZE);
+          if (safe_read(sockfd, buffer))
+            break;
 
-          /* Start sending the file in chunks. */
-          int counter = 0;
-          int bytes_written;
-          while ((bytes_read = fread(buffer, 1, sizeof(buffer), fp)) > 0) {
-            bytes_written = send(sockfd, buffer, bytes_read, 0);
-            /* Clear the buffer in case the size of next
-             * read is less than the buffer size BUFLEN.
-             */
-            bzero(buffer, BUFLEN);
+          /* Check if file exists. */
+          strcat(base_dir, buffer);
+          if (!access(base_dir, F_OK)) {
+            /* Send a cue for file transfer initiation. */
+            sprintf(buffer, "%s", "Initiating");
+            send(sockfd, buffer, BUFSIZE, 0);
+
+            bzero(buffer, BUFSIZE);
+            fp = fopen(base_dir, "r");
+
+            /* Start sending the file in chunks. */
+            int counter = 0;
+            int bytes_written;
+            while ((bytes_read = fread(buffer, 1, sizeof(buffer), fp)) > 0) {
+              bytes_written = send(sockfd, buffer, bytes_read, 0);
+              /* Clear the buffer in case the size of next
+               * read is less than the buffer size BUFSIZE.
+               */
+              bzero(buffer, BUFSIZE);
+            }
+
+            fclose(fp);
           }
 
-          fclose(fp);
+          else {
+            bzero(buffer, BUFSIZE);
+            sprintf(buffer, "%s", "+----------------+\n"
+                                  "| File not found |\n"
+                                  "+----------------+");
+            send(sockfd, buffer, BUFSIZE, 0);
+          }
         }
-
         else {
-          bzero(buffer, BUFLEN);
-          sprintf(buffer, "%s", "+----------------+\n"
-                                "| File not found |\n"
-                                "+----------------+");
-          send(sockfd, buffer, BUFLEN, 0);
+          invalid = 1;
+          break;
         }
       }
 
-    else invalid = 1;
+      else {
+        invalid = 1;
+        break;
+      }
+
+      free(line);
     }
 
     if (invalid) {
-      bzero(buffer, BUFLEN);
+      bzero(buffer, BUFSIZE);
       sprintf(buffer, "%s", "+---------------------------+\n"
                             "| Authentication failure!!! |\n"
                             "+---------------------------+");
-      send(sockfd, buffer, BUFLEN, 0);
+      send(sockfd, buffer, BUFSIZE, 0);
     }
 
-    bzero(buffer, BUFLEN);
+    bzero(buffer, BUFSIZE);
   }
 }
 
-int main(int argc, char **argv) {
+int
+main(int argc, char **argv) {
+  int      client_len;
+  int      wstatus;
+  pid_t    pid;
+  pid_t    result;
   uint16_t port;
   uint16_t client_sockfd;
-  int client_len;
-  int wstatus;
-  pid_t pid;
-  pid_t result;
   struct sockaddr_storage serverStorage;
 
   /* Disable buffering on standard output stream. */
@@ -138,13 +192,13 @@ int main(int argc, char **argv) {
   /* Handle interrupts */
   signal(SIGINT, int_handler);
 
-  if (argc != 2) {
-    fprintf(stderr, "Usage: ./server <PORT>\nExiting!\n");
+  if (argc != 3) {
+    fprintf(stderr, "Usage: ./server <IP> <PORT>\nExiting!\n");
     exit(EXIT_FAILURE);
   }
 
-  port   = atoi(argv[1]);
-  make_socket(port);
+  port = atoi(argv[2]);
+  make_socket(argv[1], port);
 
   if (listen(sockfd, MAX_CONN) == 0)
     printf("Listening on port %d\n", port);
