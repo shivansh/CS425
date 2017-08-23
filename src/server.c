@@ -43,9 +43,9 @@ uint16_t make_socket(uint16_t port) {
 void process(uint16_t sockfd) {
   int bytes_read;
   int invalid = 0;
-  char username[256];
-  char password[256];
-  char base_dir[256] = "./serve/";
+  char username[BUFLEN];
+  char password[BUFLEN];
+  char base_dir[BUFLEN] = "./serve/";
   FILE *fp;
   void *p;
 
@@ -74,7 +74,7 @@ void process(uint16_t sockfd) {
         sprintf(password, "%s", buffer);
 
         /* Authenticate the client's password. */
-        if (!strcmp(buffer, "rai")) {
+        if (!strcmp(password, "rai")) {
           sprintf(buffer, "Hello %s", username);
           send(sockfd, buffer, strlen(buffer), 0);
 
@@ -91,23 +91,22 @@ void process(uint16_t sockfd) {
 
             bzero(buffer, BUFLEN);
             fp = fopen(base_dir, "r");
-            /* bytes_read = fread(buffer, 1, sizeof(buffer), fp); */
 
             int counter = 0;
             int bytes_written;
             while ((bytes_read = fread(buffer, 1, sizeof(buffer), fp)) > 0) {
-              /* p = buffer; */
               bytes_written = send(sockfd, buffer, bytes_read, 0);
-              /* bytes_read -= bytes_written; */
-              /* p += bytes_written; */
-              counter += bytes_written;
+              /* Clear the buffer in case the size of next
+               * read is less than the buffer size BUFLEN.
+               */
+              bzero(buffer, BUFLEN);
             }
-            printf("%d\n", counter);
 
             fclose(fp);
           }
 
           else {
+            bzero(buffer, BUFLEN);
             sprintf(buffer, "%s", "+----------------+\n"
                                   "| File not found |\n"
                                   "+----------------+");
@@ -122,6 +121,7 @@ void process(uint16_t sockfd) {
     }
 
     if (invalid) {
+      bzero(buffer, BUFLEN);
       sprintf(buffer, "%s", "+---------------------------+\n"
                             "| Authentication failure!!! |\n"
                             "+---------------------------+");
