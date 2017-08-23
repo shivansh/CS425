@@ -45,32 +45,31 @@ make_socket(char *server_ip, uint16_t port) {
 
 char*
 read_line(FILE *fp) {
+  int  bytes_read = 0;
+  int  bufsize = BUFSIZE;
   char *buffer;
   char *tmp;
-  int read_chars = 0;
-  int bufsize = BUFSIZE;
   char *line = malloc(bufsize);
 
-  if ( !line ) {
+  if (!line)
     return NULL;
-  }
 
   buffer = line;
 
-  while ( fgets(buffer, bufsize - read_chars, fp) ) {
-    read_chars = strlen(line);
+  while (fgets(buffer, bufsize - bytes_read, fp)) {
+    bytes_read = strlen(line);
 
-    if ( line[read_chars - 1] == '\n' ) {
-      line[read_chars - 1] = '\0';
+    if (line[bytes_read - 1] == '\n') {
+      line[bytes_read - 1] = '\0';
       return line;
     }
 
     else {
       bufsize = 2 * bufsize;
       tmp = realloc(line, bufsize);
-      if ( tmp ) {
+      if (tmp) {
 	line = tmp;
-	buffer = line + read_chars;
+	buffer = line + bytes_read;
       }
       else {
 	free(line);
@@ -78,6 +77,7 @@ read_line(FILE *fp) {
       }
     }
   }
+
   return NULL;
 }
 
@@ -85,30 +85,36 @@ void
 process(uint16_t sockfd) {
   int  bytes_read;
   int  invalid = 0;
+  int  valid_user = 0;
   char username[256];
   char password[256];
   char base_dir[256] = BASEDIR;
   FILE *fp;
 
   bzero(buffer, BUFSIZE);
+
   while(1) {
     if (safe_read(sockfd, buffer))
       break;
 
-    /* Safely print data instead of dumping. */
-    /* Authenticate the client's username. */
-    sprintf(username, "%s", buffer);
+    snprintf(username, strlen(buffer) + 1, "%s", buffer);
     FILE *user_fp;
     char *line;
 
-    user_fp = fopen("users.txt", "r");
+    /* Authenticate the client's username. */
+    user_fp = fopen("users.txt", "a+");
     while( line = read_line(user_fp) ) {
       if (strstr(line, username)) {
+        valid_user = 1;
+        bzero(buffer, BUFSIZE);
+        sprintf(buffer, "valid_user");
+        send(sockfd, buffer, BUFSIZE, 0);
+
         bzero(buffer, BUFSIZE);
         if (safe_read(sockfd, buffer))
           break;
 
-        sprintf(password, "%s", buffer);
+        snprintf(password, strlen(buffer) + 1, "%s", buffer);
         if (strstr(line, password)) {
           sprintf(buffer, "Hello %s", username);
           send(sockfd, buffer, BUFSIZE, 0);
@@ -155,14 +161,23 @@ process(uint16_t sockfd) {
           break;
         }
       }
-
-      else {
-        invalid = 1;
-        break;
-      }
-
       free(line);
     }
+
+    if (!valid_user) {
+      bzero(buffer, BUFSIZE);
+      sprintf(buffer, "%s", "no_user");
+      send(sockfd, buffer, BUFSIZE, 0);
+      bzero(buffer, BUFSIZE);
+      if (safe_read(sockfd, buffer))
+        exit(EXIT_SUCCESS);
+
+      safe_write(buffer, strlen(buffer), user_fp);
+
+      invalid = 1;
+    }
+
+    fclose(user_fp);
 
     if (invalid) {
       bzero(buffer, BUFSIZE);

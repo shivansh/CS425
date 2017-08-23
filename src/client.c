@@ -105,12 +105,34 @@ main(int argc, char **argv) {
     /* Get the username and password from client. */
     sprintf(buffer, "%s", username);
     send(sockfd, buffer, strlen(username), 0);
-    bzero(buffer, BUFSIZE);
 
-    /* Wait for half a second so that the
-     * server processes the username.
-     */
-    usleep(500000);
+    bzero(buffer, BUFSIZE);
+    if (safe_read(sockfd, buffer))
+      exit(EXIT_SUCCESS);
+
+    if (!strcmp(buffer, "no_user")) {
+      printf("Username \'%s\' does not exist."
+             " Do you want to register? [y/n] ", username);
+      char ans;
+      scanf("%c", &ans);
+      switch(ans) {
+        case 'y':
+        case 'Y':
+          printf("Retype password: ");
+          scanf("%s", password);
+          bzero(buffer, BUFSIZE);
+          sprintf(buffer, "%s %s\n", username, password);
+          send(sockfd, buffer, strlen(buffer) + 1, 0);
+          printf("Successfully registered!\n");
+          close(sockfd);
+          return 0;
+
+        default:
+          close(sockfd);
+          return 0;
+      }
+    }
+
     sprintf(buffer, "%s", password);
     send(sockfd, buffer, strlen(password), 0);
 
