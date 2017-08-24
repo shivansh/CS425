@@ -107,7 +107,7 @@ process(uint16_t sockfd) {
       if (strstr(line, username)) {
         valid_user = 1;
         bzero(buffer, BUFSIZE);
-        sprintf(buffer, "valid_user");
+        snprintf(buffer, 11, "valid_user");
         send(sockfd, buffer, BUFSIZE, 0);
 
         bzero(buffer, BUFSIZE);
@@ -116,7 +116,7 @@ process(uint16_t sockfd) {
 
         snprintf(password, strlen(buffer) + 1, "%s", buffer);
         if (strstr(line, password)) {
-          sprintf(buffer, "Hello %s", username);
+          snprintf(buffer, strlen(username) + 7,  "Hello %s", username);
           send(sockfd, buffer, BUFSIZE, 0);
 
           /* Client will now send the filename. */
@@ -128,7 +128,7 @@ process(uint16_t sockfd) {
           strcat(base_dir, buffer);
           if (!access(base_dir, F_OK)) {
             /* Send a cue for file transfer initiation. */
-            sprintf(buffer, "%s", "Initiating");
+            snprintf(buffer, 11, "Initiating");
             send(sockfd, buffer, BUFSIZE, 0);
 
             bzero(buffer, BUFSIZE);
@@ -137,8 +137,8 @@ process(uint16_t sockfd) {
             /* Start sending the file in chunks. */
             int counter = 0;
             int bytes_written;
-            while ((bytes_read = fread(buffer, 1, sizeof(buffer), fp)) > 0) {
-              bytes_written = send(sockfd, buffer, bytes_read, 0);
+            while ((bytes_read = fread(buffer, 1, BUFSIZE, fp)) > 0) {
+              send(sockfd, buffer, bytes_read, 0);
               /* Clear the buffer in case the size of next
                * read is less than the buffer size BUFSIZE.
                */
@@ -150,17 +150,19 @@ process(uint16_t sockfd) {
 
           else {
             bzero(buffer, BUFSIZE);
-            sprintf(buffer, "%s", "+----------------+\n"
-                                  "| File not found |\n"
-                                  "+----------------+");
+            sprintf(buffer, "+----------------+\n"
+                            "| File not found |\n"
+                            "+----------------+");
             send(sockfd, buffer, BUFSIZE, 0);
           }
         }
+
         else {
           invalid = 1;
           break;
         }
       }
+
       free(line);
     }
 
@@ -181,9 +183,9 @@ process(uint16_t sockfd) {
 
     if (invalid) {
       bzero(buffer, BUFSIZE);
-      sprintf(buffer, "%s", "+---------------------------+\n"
-                            "| Authentication failure!!! |\n"
-                            "+---------------------------+");
+      sprintf(buffer, "+---------------------------+\n"
+                      "| Authentication failure!!! |\n"
+                      "+---------------------------+");
       send(sockfd, buffer, BUFSIZE, 0);
     }
 
@@ -228,9 +230,9 @@ main(int argc, char **argv) {
       exit(EXIT_FAILURE);
     }
 
-    printf("+-------------------------------------+\n"
-           "| Successfully established connection |\n"
-           "+-------------------------------------+\n");
+    printf("\n+-------------------------------------+\n"
+             "| Successfully established connection |\n"
+             "+-------------------------------------+\n");
 
     if ((pid = fork()) < 0) {
       fprintf(stderr, "Error on fork\n");

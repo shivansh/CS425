@@ -166,6 +166,8 @@ main(int argc, char **argv) {
         while(1) {
           bzero(buffer, BUFSIZE);
           bytes_read = read(sockfd, buffer, BUFSIZE);
+          /* printf("%s\n", buffer); */
+          /* printf("%d\n", bytes_read); */
 
           if (bytes_read < 0) {
             fprintf(stderr, "Error while reading from socket\n");
@@ -177,7 +179,9 @@ main(int argc, char **argv) {
             break;
           }
 
-          safe_write(buffer, bytes_read, fp);
+          else {
+            safe_write(buffer, bytes_read, fp);
+          }
         }
 
         printf("+------------------------+\n"

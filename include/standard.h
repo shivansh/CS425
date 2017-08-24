@@ -16,17 +16,18 @@ void close_sock(uint16_t sockfd, char *node) {
 }
 
 int safe_read(uint16_t sockfd, char *buffer) {
+  /* Handle errors while reading from a socket. */
   int bytes_read;
 
   bytes_read = read(sockfd, buffer, BUFSIZE);
   if (bytes_read < 0) {
-    fprintf(stderr, "Terminating connection\n");
+    fprintf(stderr, "Connection terminated.\n");
     exit(EXIT_FAILURE);
   }
 
   else if (bytes_read == 0) {
     /* Connection terminated. */
-    fprintf(stderr, "Connection terminated.");
+    fprintf(stderr, "Seems like client has closed the connection.");
     close_sock(sockfd, "client");
     return 1;
   }
@@ -35,10 +36,15 @@ int safe_read(uint16_t sockfd, char *buffer) {
 }
 
 void safe_write(char *buffer, int bytes_read, FILE *fp) {
+  /* Handle errors while writing to a file. */
   int bytes_written;
 
+  /* It is possible that fwrite may fail while writing.
+   * Hence, we keep on attempting at writing until successful.
+   */
   while(1) {
     bytes_written = fwrite(buffer, 1, bytes_read, fp);
+    // printf("%d %d\n", bytes_written, bytes_read);
     if (bytes_written == bytes_read)
       break;
   }
