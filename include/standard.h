@@ -44,7 +44,6 @@ void safe_write(char *buffer, int bytes_read, FILE *fp) {
    */
   while(1) {
     bytes_written = fwrite(buffer, 1, bytes_read, fp);
-    // printf("%d %d\n", bytes_written, bytes_read);
     if (bytes_written == bytes_read)
       break;
   }
