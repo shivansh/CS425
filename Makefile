@@ -1,5 +1,4 @@
 CC=	gcc
-SRC=	./src
 OBJ=	./obj
 INCLUDE=./include
 CFLAGS=	-I$(INCLUDE)
@@ -7,20 +6,23 @@ _DEPS = standard.h
 DEPS=	$(patsubst %, $(INCLUDE)/%, $(_DEPS))
 
 all:
-	make server
-	make client
+	make server_exe
+	make client_exe
 
-$(OBJ)/%.o: $(SRC)/%.c $(DEPS)
+$(OBJ)/server.o: server/server.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-server: $(OBJ)/server.o
-	$(CC) -o server $(OBJ)/server.o $(CFLAGS)
+$(OBJ)/client.o: client/client.c $(DEPS)
+	$(CC) -c -o $@ $< $(CFLAGS)
 
-client: $(OBJ)/client.o
-	$(CC) -o client $(OBJ)/client.o $(CFLAGS)
+server_exe: $(OBJ)/server.o
+	$(CC) -o server_exe $(OBJ)/server.o $(CFLAGS)
+
+client_exe: $(OBJ)/client.o
+	$(CC) -o client_exe $(OBJ)/client.o $(CFLAGS)
 
 .PHONY: clean
 
 clean:
 	rm -f $(OBJ)/*
-	rm -f server client
+	rm -f server_exe client_exe file1.txt file2.txt binary_file

@@ -1,7 +1,7 @@
 #include "standard.h"
 
 #define MAX_CONN 5
-#define BASEDIR "./serve/"
+#define BASEDIR "./server/"
 
 uint16_t sockfd;
 struct sockaddr_in client;
@@ -102,7 +102,7 @@ process(uint16_t sockfd) {
     char *line;
 
     /* Authenticate the client's username. */
-    user_fp = fopen("users.txt", "a+");
+    user_fp = fopen("./server/users.txt", "a+");
     while( line = read_line(user_fp) ) {
       if (strstr(line, username)) {
         valid_user = 1;
