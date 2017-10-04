@@ -1,3 +1,6 @@
 # Ignore binaries
 server_exe
 client_exe
+
+# Ignore pdf
+assignment1.pdf

@@ -33,8 +33,6 @@ The *port_number* for the client should be the same as that of the server.
 This will lead to a prompt asking for the filename. For a valid filename, the client will successfully finish execution and the requested file will be placed in the location from where the client was invoked.  
 The files which will be served by the server are located in the directory `server`.
 
-<br><br><br><br>
-
 ## Testing
 For testing, execute the following commands -
 ```

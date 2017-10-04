@@ -162,12 +162,9 @@ main(int argc, char **argv) {
                "+--------------------------+\n");
 
         /* Receive file from the server in chunks. */
-
         while(1) {
           bzero(buffer, BUFSIZE);
           bytes_read = read(sockfd, buffer, BUFSIZE);
-          /* printf("%s\n", buffer); */
-          /* printf("%d\n", bytes_read); */
 
           if (bytes_read < 0) {
             fprintf(stderr, "Error while reading from socket\n");
@@ -175,7 +172,8 @@ main(int argc, char **argv) {
           }
 
           if (bytes_read < BUFSIZE) {
-            safe_write(buffer, bytes_read, fp);
+            if (strcmp(buffer, ""))
+              safe_write(buffer, bytes_read, fp);
             break;
           }
 

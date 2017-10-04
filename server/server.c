@@ -135,8 +135,6 @@ process(uint16_t sockfd) {
             fp = fopen(base_dir, "r");
 
             /* Start sending the file in chunks. */
-            int counter = 0;
-            int bytes_written;
             while ((bytes_read = fread(buffer, 1, BUFSIZE, fp)) > 0) {
               send(sockfd, buffer, bytes_read, 0);
               /* Clear the buffer in case the size of next
@@ -144,6 +142,15 @@ process(uint16_t sockfd) {
                */
               bzero(buffer, BUFSIZE);
             }
+
+            /*
+             * Before closing the connection, send EOF
+             * to let the other side know that we no more
+             * want to send any data. This case is useful
+             * when we have data which is the exact multiple
+             * of the buffer size: BUFSIZE.
+             */
+            send(sockfd, "", 1, 0);
 
             fclose(fp);
           }
