@@ -150,7 +150,13 @@ process(uint16_t sockfd)
                          * want to send any data. This case is useful
                          * when we have data which is the exact multiple
                          * of the buffer size: BUFSIZE.
+                         *
+                         * A small timeout will ensure that the client
+                         * performs two reads instead of a single read
+                         * in which case the empty message will be
+                         * indistinguishable from the rest.
                          */
+                        usleep(100000);
                         send(sockfd, "", 1, 0);
 
                         fclose(fp);
