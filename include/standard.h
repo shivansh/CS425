@@ -10,41 +10,45 @@
 
 #define BUFSIZE 1024
 
-void close_sock(uint16_t sockfd, char *node) {
-  fprintf(stderr, "\nDisconnecting with %s...\n", node);
-  close(sockfd);
+void
+close_sock(uint16_t sockfd, char *node)
+{
+    fprintf(stderr, "\nDisconnecting with %s...\n", node);
+    close(sockfd);
 }
 
-int safe_read(uint16_t sockfd, char *buffer) {
-  /* Handle errors while reading from a socket. */
-  int bytes_read;
+int
+safe_read(uint16_t sockfd, char *buffer)
+{
+    /* Handle errors while reading from a socket. */
+    int bytes_read;
 
-  bytes_read = read(sockfd, buffer, BUFSIZE);
-  if (bytes_read < 0) {
-    fprintf(stderr, "Connection terminated.\n");
-    exit(EXIT_FAILURE);
-  }
+    bytes_read = read(sockfd, buffer, BUFSIZE);
+    if (bytes_read < 0) {
+        fprintf(stderr, "Connection terminated.\n");
+        exit(EXIT_FAILURE);
+    } else if (bytes_read == 0) {
+        /* Connection terminated. */
+        fprintf(stderr, "Seems like client has closed the connection.");
+        close_sock(sockfd, "client");
+        return 1;
+    }
 
-  else if (bytes_read == 0) {
-    /* Connection terminated. */
-    fprintf(stderr, "Seems like client has closed the connection.");
-    close_sock(sockfd, "client");
-    return 1;
-  }
-
-  return 0;
+    return 0;
 }
 
-void safe_write(char *buffer, int bytes_read, FILE *fp) {
-  /* Handle errors while writing to a file. */
-  int bytes_written;
+void
+safe_write(char *buffer, int bytes_read, FILE *fp)
+{
+    /* Handle errors while writing to a file. */
+    int bytes_written;
 
-  /* It is possible that fwrite may fail while writing.
-   * Hence, we keep on attempting at writing until successful.
-   */
-  while(1) {
-    bytes_written = fwrite(buffer, 1, bytes_read, fp);
-    if (bytes_written == bytes_read)
-      break;
-  }
+    /* It is possible that fwrite may fail while writing.
+     * Hence, we keep on attempting at writing until successful.
+     */
+    while(1) {
+        bytes_written = fwrite(buffer, 1, bytes_read, fp);
+        if (bytes_written == bytes_read)
+            break;
+    }
 }
