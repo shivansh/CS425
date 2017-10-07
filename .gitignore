@@ -4,3 +4,7 @@ client_exe
 
 # Ignore pdf
 assignment1.pdf
+
+# Ignore large test files
+freebsd_iso
+ubuntu_iso

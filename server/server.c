@@ -85,7 +85,7 @@ read_line(FILE *fp)
 }
 
 void
-process(uint16_t sockfd)
+handle_client_connection(uint16_t sockfd)
 {
     int  bytes_read;
     int  invalid = 0;
@@ -215,8 +215,8 @@ main(int argc, char **argv)
     uint16_t client_sockfd;
     struct sockaddr_storage serverStorage;
 
-    /* Disable buffering on standard output stream. */
-    setbuf(stdout, NULL);
+    /* Enable line-buffering on standard output stream. */
+    setlinebuf(stdout);
 
     /* Handle interrupts */
     signal(SIGINT, int_handler);
@@ -252,7 +252,7 @@ main(int argc, char **argv)
             exit(EXIT_FAILURE);
         } else if (pid == 0) {
             /* This is the child process. */
-            process(client_sockfd);
+            handle_client_connection(client_sockfd);
             close(client_sockfd);
             exit(EXIT_SUCCESS);
         } else {
