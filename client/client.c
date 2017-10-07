@@ -1,4 +1,3 @@
-#define CLIENT
 #include "standard.h"
 
 uint16_t sockfd;
@@ -14,7 +13,8 @@ int_handler()
 void
 make_socket(char *server_ip, uint16_t port)
 {
-    /* Subroutine to connect a socket with the machine
+    /*
+     * Subroutine to connect a socket with the machine
      * address and return its file descriptor.
      */
     struct sockaddr_in server;
@@ -70,7 +70,8 @@ main(int argc, char **argv)
         close_sock(sockfd, "server");
         exit(EXIT_FAILURE);
     } else if (pid == 0) {
-        /* This is the child process. It establishes a connection
+        /*
+         * This is the child process. It establishes a connection
          * with the server while parent process 'wait()'s on it.
          */
 
@@ -107,13 +108,13 @@ main(int argc, char **argv)
         sprintf(buffer, "%s", username);
         send(sockfd, buffer, strlen(username), 0);
 
-        bzero(buffer, BUFSIZE);
+        bzero(buffer, sizeof(username));
         if (!safe_read(sockfd, buffer))
             exit(EXIT_SUCCESS);
 
         if (!strcmp(buffer, "no_user")) {
-            printf("Username \'%s\' does not exist."
-                    " Do you want to register? [y/n] ", username);
+            printf("Username \'%s\' does not exist. "
+                   "Do you want to register? [y/n] ", username);
             char ans;
             scanf("%c", &ans);
             switch(ans) {
@@ -121,9 +122,9 @@ main(int argc, char **argv)
                 case 'Y':
                     printf("Retype password: ");
                     scanf("%s", password);
-                    bzero(buffer, BUFSIZE);
                     sprintf(buffer, "%s %s\n", username, password);
                     send(sockfd, buffer, strlen(buffer) + 1, 0);
+                    bzero(buffer, sizeof(username) + sizeof(password) + 2);
                     printf("Successfully registered!\n");
                     close(sockfd);
                     return 0;
@@ -138,20 +139,20 @@ main(int argc, char **argv)
         send(sockfd, buffer, strlen(password), 0);
 
         /* Server will send authentication status. */
-        bzero(buffer, BUFSIZE);
+        bzero(buffer, sizeof(password));
         if (!safe_read(sockfd, buffer))
             exit(EXIT_SUCCESS);
 
         if (!strncmp(buffer, "Hello", 5)) {
             printf("%s\n", buffer);
-            bzero(buffer, BUFSIZE);
+            bzero(buffer, 5);
 
             printf("Enter the filename: ");
             scanf("%s", filename);
             sprintf(buffer, "%s", filename);
             send(sockfd, buffer, BUFSIZE, 0);
 
-            bzero(buffer, BUFSIZE);
+            bzero(buffer, sizeof(filename));
             if (!safe_read(sockfd, buffer))
                 exit(EXIT_SUCCESS);
 
@@ -164,7 +165,7 @@ main(int argc, char **argv)
 
                 /* Receive file from the server in chunks. */
                 while(1) {
-                    bzero(buffer, BUFSIZE);
+                    bzero(buffer, 10);
                     bytes_read = safe_read(sockfd, buffer);
 
                     if (bytes_read < BUFSIZE) {
@@ -184,7 +185,8 @@ main(int argc, char **argv)
         } else
             printf("%s", buffer);
     } else {
-        /* Parent process waits until the client
+        /*
+         * Parent process waits until the client
          * finishes communication with the server.
          */
         waitpid(pid, &wstatus, 0);

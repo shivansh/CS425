@@ -19,7 +19,8 @@ int_handler()
 void
 make_socket(char *server_ip, uint16_t port)
 {
-    /* Subroutine to bidn a socket with the machine
+    /*
+     * Subroutine to bidn a socket with the machine
      * address and return its file descriptor.
      */
 
@@ -31,7 +32,8 @@ make_socket(char *server_ip, uint16_t port)
     }
 
     printf("Socket instantiated\n");
-    /* The htons() function converts from
+    /*
+     * The htons() function converts from
      * host byte order to network byte order.
      */
     client.sin_family      = AF_INET;
@@ -93,9 +95,9 @@ process(uint16_t sockfd)
     char base_dir[256] = BASEDIR;
     FILE *fp;
 
-    bzero(buffer, BUFSIZE);
-
     while(1) {
+        bzero(buffer, BUFSIZE);
+
         if (!safe_read(sockfd, buffer))
             break;
 
@@ -112,7 +114,7 @@ process(uint16_t sockfd)
                 snprintf(buffer, 11, "valid_user");
                 send(sockfd, buffer, BUFSIZE, 0);
 
-                bzero(buffer, BUFSIZE);
+                bzero(buffer, 11);
                 if (!safe_read(sockfd, buffer))
                     break;
 
@@ -122,8 +124,8 @@ process(uint16_t sockfd)
                     send(sockfd, buffer, BUFSIZE, 0);
 
                     /* Client will now send the filename. */
-                    bzero(buffer, BUFSIZE);
-                    if (!safe_read(sockfd, buffer))
+                    bzero(buffer, strlen(username) + 7);
+                    if (!(bytes_read = safe_read(sockfd, buffer)))
                         break;
 
                     /* Check if file exists. */
@@ -133,7 +135,7 @@ process(uint16_t sockfd)
                         snprintf(buffer, 11, "Initiating");
                         send(sockfd, buffer, BUFSIZE, 0);
 
-                        bzero(buffer, BUFSIZE);
+                        bzero(buffer, 11);
                         fp = fopen(base_dir, "r");
 
                         /* Start sending the file in chunks. */
@@ -162,7 +164,7 @@ process(uint16_t sockfd)
 
                         fclose(fp);
                     } else {
-                        bzero(buffer, BUFSIZE);
+                        bzero(buffer, bytes_read);
                         sprintf(buffer, "+----------------+\n"
                                         "| File not found |\n"
                                         "+----------------+");
@@ -181,7 +183,7 @@ process(uint16_t sockfd)
             bzero(buffer, BUFSIZE);
             sprintf(buffer, "%s", "no_user");
             send(sockfd, buffer, BUFSIZE, 0);
-            bzero(buffer, BUFSIZE);
+            bzero(buffer, 7);
             if (!safe_read(sockfd, buffer))
                 exit(EXIT_SUCCESS);
 
@@ -199,8 +201,6 @@ process(uint16_t sockfd)
                             "+---------------------------+");
             send(sockfd, buffer, BUFSIZE, 0);
         }
-
-        bzero(buffer, BUFSIZE);
     }
 }
 
@@ -256,7 +256,8 @@ main(int argc, char **argv)
             close(client_sockfd);
             exit(EXIT_SUCCESS);
         } else {
-            /* This is the parent process.
+            /*
+             * This is the parent process.
              * We return immediately if no child has exited.
              */
             result = waitpid(pid, &wstatus, WNOHANG);

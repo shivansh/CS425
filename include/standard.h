@@ -48,7 +48,8 @@ safe_write(char *buffer, int bytes_read, FILE *fp)
     /* Handle errors while writing to a file. */
     int bytes_written;
 
-    /* It is possible that fwrite may fail while writing.
+    /*
+     * It is possible that fwrite may fail while writing.
      * Hence, we keep on attempting at writing until successful.
      */
     while(1) {
