@@ -1,3 +1,4 @@
+#define CLIENT
 #include "standard.h"
 
 uint16_t sockfd;
@@ -107,7 +108,7 @@ main(int argc, char **argv)
         send(sockfd, buffer, strlen(username), 0);
 
         bzero(buffer, BUFSIZE);
-        if (safe_read(sockfd, buffer))
+        if (!safe_read(sockfd, buffer))
             exit(EXIT_SUCCESS);
 
         if (!strcmp(buffer, "no_user")) {
@@ -138,7 +139,7 @@ main(int argc, char **argv)
 
         /* Server will send authentication status. */
         bzero(buffer, BUFSIZE);
-        if (safe_read(sockfd, buffer))
+        if (!safe_read(sockfd, buffer))
             exit(EXIT_SUCCESS);
 
         if (!strncmp(buffer, "Hello", 5)) {
@@ -151,7 +152,7 @@ main(int argc, char **argv)
             send(sockfd, buffer, BUFSIZE, 0);
 
             bzero(buffer, BUFSIZE);
-            if (safe_read(sockfd, buffer))
+            if (!safe_read(sockfd, buffer))
                 exit(EXIT_SUCCESS);
 
             /* Receive file transfer initiation cue. */
@@ -164,20 +165,14 @@ main(int argc, char **argv)
                 /* Receive file from the server in chunks. */
                 while(1) {
                     bzero(buffer, BUFSIZE);
-                    bytes_read = read(sockfd, buffer, BUFSIZE);
-
-                    if (bytes_read < 0) {
-                        fprintf(stderr, "Error while reading from socket\n");
-                        continue;
-                    }
+                    bytes_read = safe_read(sockfd, buffer);
 
                     if (bytes_read < BUFSIZE) {
                         if (strcmp(buffer, ""))
                             safe_write(buffer, bytes_read, fp);
                         break;
-                    } else {
+                    } else
                         safe_write(buffer, bytes_read, fp);
-                    }
                 }
 
                 printf("+------------------------+\n"

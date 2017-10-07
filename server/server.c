@@ -1,3 +1,4 @@
+#define SERVER
 #include "standard.h"
 
 #define MAX_CONN 5
@@ -95,7 +96,7 @@ process(uint16_t sockfd)
     bzero(buffer, BUFSIZE);
 
     while(1) {
-        if (safe_read(sockfd, buffer))
+        if (!safe_read(sockfd, buffer))
             break;
 
         snprintf(username, strlen(buffer) + 1, "%s", buffer);
@@ -112,7 +113,7 @@ process(uint16_t sockfd)
                 send(sockfd, buffer, BUFSIZE, 0);
 
                 bzero(buffer, BUFSIZE);
-                if (safe_read(sockfd, buffer))
+                if (!safe_read(sockfd, buffer))
                     break;
 
                 snprintf(password, strlen(buffer) + 1, "%s", buffer);
@@ -122,7 +123,7 @@ process(uint16_t sockfd)
 
                     /* Client will now send the filename. */
                     bzero(buffer, BUFSIZE);
-                    if (safe_read(sockfd, buffer))
+                    if (!safe_read(sockfd, buffer))
                         break;
 
                     /* Check if file exists. */
@@ -181,7 +182,7 @@ process(uint16_t sockfd)
             sprintf(buffer, "%s", "no_user");
             send(sockfd, buffer, BUFSIZE, 0);
             bzero(buffer, BUFSIZE);
-            if (safe_read(sockfd, buffer))
+            if (!safe_read(sockfd, buffer))
                 exit(EXIT_SUCCESS);
 
             safe_write(buffer, strlen(buffer), user_fp);

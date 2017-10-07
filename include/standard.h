@@ -25,16 +25,21 @@ safe_read(uint16_t sockfd, char *buffer)
 
     bytes_read = read(sockfd, buffer, BUFSIZE);
     if (bytes_read < 0) {
-        fprintf(stderr, "Connection terminated.\n");
+        fprintf(stderr, "Error while reading from socket.\n");
         exit(EXIT_FAILURE);
     } else if (bytes_read == 0) {
+#ifdef SERVER
         /* Connection terminated. */
         fprintf(stderr, "Seems like client has closed the connection.");
         close_sock(sockfd, "client");
-        return 1;
+#else
+        fprintf(stderr, "Seems like server has closed the connection.");
+        close_sock(sockfd, "server");
+#endif
+        return 0;
     }
 
-    return 0;
+    return bytes_read;
 }
 
 void
