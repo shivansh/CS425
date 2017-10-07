@@ -176,10 +176,10 @@ main(int argc, char **argv)
                         safe_write(buffer, bytes_read, fp);
                 }
 
+                fclose(fp);     /* Flush the stream. */
                 printf("+------------------------+\n"
                         "| File transfer complete |\n"
                         "+------------------------+\n");
-                fclose(fp);
             } else
                 printf("%s", buffer);
         } else
