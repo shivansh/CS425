@@ -1,6 +1,7 @@
 #include "standard.h"
 
 uint16_t sockfd;
+int  opt_file = 0;
 
 void
 int_handler()
@@ -68,8 +69,11 @@ handle_server_connection(int  server_port,
         printf("%s\n", buffer);
         bzero(buffer, 5);
 
-        printf("Enter the filename: ");
-        scanf("%s", filename);
+        if (!opt_file) {
+            printf("Enter the filename: ");
+            scanf("%s", filename);
+        }
+
         sprintf(buffer, "%s", filename);
         send(sockfd, buffer, BUFSIZE, 0);
 
@@ -124,12 +128,17 @@ main(int argc, char **argv)
     /* Handle interrupts */
     signal(SIGINT, int_handler);
 
-    if (argc != 3) {
-        fprintf(stderr, "Usage: ./client username:password@<server_ip> <port>\n");
+    if (argc == 6 && !strcmp(argv[4], "-f")) {
+        snprintf(filename, strlen(argv[5]) + 1, "%s", argv[5]);
+        opt_file = 1;
+        printf("%s\n", filename);
+    } else {
+        fprintf(stderr, "Usage: ./client username:password@<server_ip> -p <port> -f <filename>\n");
         exit(EXIT_FAILURE);
     }
 
-    server_port = atoi(argv[2]);
+    if (!strcmp(argv[2], "-p"))
+        server_port = atoi(argv[3]);
 
     /* Extract username, password and server IP from argv[1]. */
     int i = 0;

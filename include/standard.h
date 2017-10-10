@@ -27,7 +27,7 @@ safe_read(uint16_t sockfd, char *buffer)
 
     bytes_read = read(sockfd, buffer, BUFSIZE);
     if (bytes_read < 0) {
-        fprintf(stderr, "Error while reading from socket: ");
+        fprintf(stderr, "Error while reading from socket\n");
         exit(EXIT_FAILURE);
     } else if (bytes_read == 0) {
 #ifdef SERVER
