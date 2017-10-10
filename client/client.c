@@ -11,35 +11,7 @@ int_handler()
 }
 
 void
-make_socket(char *server_ip, uint16_t port)
-{
-    /*
-     * Subroutine to connect a socket with the machine
-     * address and return its file descriptor.
-     */
-    struct sockaddr_in server;
-
-    sockfd = socket(PF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) {
-        fprintf(stderr, "Socket instantiation unsuccessful: ");
-        exit(EXIT_FAILURE);
-    }
-
-    printf("Socket instantiated\n");
-    server.sin_family      = AF_INET;
-    server.sin_port        = htons(port);
-    server.sin_addr.s_addr = inet_addr(server_ip);
-
-    if (connect(sockfd, (struct sockaddr*)&server, sizeof(server)) < 0) {
-        fprintf(stderr, "Error while connecting socket: ");
-        exit(EXIT_FAILURE);
-    }
-
-    printf("Socket connected to server at port %d\n", port);
-}
-
-void
-handle_server_connection(int server_port,
+handle_server_connection(int  server_port,
                          char *server_ip,
                          char *username,
                          char *password,
@@ -48,8 +20,9 @@ handle_server_connection(int server_port,
     int  bytes_read;
     char buffer[BUFSIZE];
     FILE *fp;
+    struct sockaddr_in server;
 
-    make_socket(server_ip, server_port);
+    sockfd = make_socket(server_ip, server_port, &server);
     bzero(buffer, BUFSIZE);
 
     /* Get the username and password from client. */
@@ -108,8 +81,8 @@ handle_server_connection(int server_port,
         if (!strncmp(buffer, "Initiating", 10)) {
             fp = fopen(filename, "w");
             printf("+--------------------------+\n"
-                    "| Initiating file transfer |\n"
-                    "+--------------------------+\n");
+                   "| Initiating file transfer |\n"
+                   "+--------------------------+\n");
 
             /* Receive file from the server in chunks. */
             while(1) {
@@ -126,8 +99,8 @@ handle_server_connection(int server_port,
 
             fclose(fp);     /* Flush the stream. */
             printf("+------------------------+\n"
-                    "| File transfer complete |\n"
-                    "+------------------------+\n");
+                   "| File transfer complete |\n"
+                   "+------------------------+\n");
         } else
             printf("%s", buffer);
     } else

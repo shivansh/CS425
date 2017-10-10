@@ -16,38 +16,6 @@ int_handler()
     exit(EXIT_FAILURE);
 }
 
-void
-make_socket(char *server_ip, uint16_t port)
-{
-    /*
-     * Subroutine to bidn a socket with the machine
-     * address and return its file descriptor.
-     */
-
-    sockfd = socket(PF_INET, SOCK_STREAM, 0);
-
-    if (sockfd < 0) {
-        perror("Socket instantiation unsuccessful: ");
-        exit(EXIT_FAILURE);
-    }
-
-    printf("Socket instantiated\n");
-    /*
-     * The htons() function converts from
-     * host byte order to network byte order.
-     */
-    client.sin_family      = AF_INET;
-    client.sin_port        = htons(port);
-    client.sin_addr.s_addr = inet_addr(server_ip);
-
-    if (bind(sockfd, (struct sockaddr*)&client, sizeof(client)) < 0) {
-        perror("Error while binding socket: ");
-        exit(EXIT_FAILURE);
-    }
-
-    printf("Socket bound to port %d\n", port);
-}
-
 char*
 read_line(FILE *fp)
 {
@@ -107,7 +75,7 @@ handle_client_connection(uint16_t sockfd)
 
         /* Authenticate the client's username. */
         user_fp = fopen("./server/users.txt", "a+");
-        while( line = read_line(user_fp) ) {
+        while(line = read_line(user_fp)) {
             if (strstr(line, username)) {
                 valid_user = 1;
                 bzero(buffer, BUFSIZE);
@@ -213,7 +181,7 @@ main(int argc, char **argv)
     pid_t    result;
     uint16_t port;
     uint16_t client_sockfd;
-    struct sockaddr_storage serverStorage;
+    struct   sockaddr_storage serverStorage;
 
     /* Enable line-buffering on standard output stream. */
     setlinebuf(stdout);
@@ -227,18 +195,18 @@ main(int argc, char **argv)
     }
 
     port = atoi(argv[2]);
-    make_socket(argv[1], port);
+    sockfd = make_socket(argv[1], port, &client);
 
     if (listen(sockfd, MAX_CONN) == 0)
         printf("Listening on port %d\n", port);
 
     while(1) {
-        client_len = sizeof(client);
+        client_len = sizeof(node);
         client_sockfd = accept(sockfd, (struct sockaddr*)&serverStorage,
                 (socklen_t*)&client_len);
 
         if (client_sockfd < 0) {
-            fprintf(stderr, "Socket accept unsuccessful ");
+            fprintf(stderr, "Socket accept unsuccessful: ");
             exit(EXIT_FAILURE);
         }
 
@@ -247,7 +215,7 @@ main(int argc, char **argv)
                  "+-------------------------------------+\n");
 
         if ((pid = fork()) < 0) {
-            fprintf(stderr, "Error on fork\n");
+            fprintf(stderr, "Error on fork: ");
             close(client_sockfd);
             exit(EXIT_FAILURE);
         } else if (pid == 0) {
