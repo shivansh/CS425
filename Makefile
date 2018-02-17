@@ -10,9 +10,11 @@ all:
 	make client_exe
 
 $(OBJ)/server.o: server/server.c $(DEPS)
+	mkdir -p $(OBJ)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 $(OBJ)/client.o: client/client.c $(DEPS)
+	mkdir -p $(OBJ)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 server_exe: $(OBJ)/server.o
@@ -24,5 +26,5 @@ client_exe: $(OBJ)/client.o
 .PHONY: clean
 
 clean:
-	rm -f $(OBJ)/*
+	rm -rf $(OBJ)
 	rm -f server_exe client_exe file1.txt file2.txt binary_file
