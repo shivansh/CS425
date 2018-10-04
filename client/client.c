@@ -1,24 +1,17 @@
 #include "standard.h"
 
 uint16_t sockfd;
-int  opt_file = 0;
+int opt_file = 0;
 
-void
-int_handler()
-{
+void int_handler() {
     /* Handle SIGINT (Ctrl+C). */
     close(sockfd);
     exit(EXIT_FAILURE);
 }
 
-void
-handle_server_connection(int  server_port,
-                         char *server_ip,
-                         char *username,
-                         char *password,
-                         char *filename)
-{
-    int  bytes_read;
+void handle_server_connection(int server_port, char *server_ip, char *username,
+                              char *password, char *filename) {
+    int bytes_read;
     char buffer[BUFSIZE];
     FILE *fp;
     struct sockaddr_in server;
@@ -31,15 +24,16 @@ handle_server_connection(int  server_port,
     send(sockfd, buffer, strlen(username), 0);
 
     bzero(buffer, strlen(username));
-    if (!safe_read(sockfd, buffer))
-        exit(EXIT_SUCCESS);
+    if (!safe_read(sockfd, buffer)) exit(EXIT_SUCCESS);
 
     if (!strcmp(buffer, "no_user")) {
-        printf("Username \'%s\' does not exist. "
-               "Do you want to register? [y/n] ", username);
+        printf(
+            "Username \'%s\' does not exist. "
+            "Do you want to register? [y/n] ",
+            username);
         char ans;
         scanf("%c", &ans);
-        switch(ans) {
+        switch (ans) {
             case 'y':
             case 'Y':
                 printf("Retype password: ");
@@ -62,8 +56,7 @@ handle_server_connection(int  server_port,
 
     /* Server will send authentication status. */
     bzero(buffer, strlen(password));
-    if (!safe_read(sockfd, buffer))
-        exit(EXIT_SUCCESS);
+    if (!safe_read(sockfd, buffer)) exit(EXIT_SUCCESS);
 
     if (!strncmp(buffer, "Hello", 5)) {
         printf("%s\n", buffer);
@@ -78,45 +71,43 @@ handle_server_connection(int  server_port,
         send(sockfd, buffer, BUFSIZE, 0);
 
         bzero(buffer, strlen(filename));
-        if (!safe_read(sockfd, buffer))
-            exit(EXIT_SUCCESS);
+        if (!safe_read(sockfd, buffer)) exit(EXIT_SUCCESS);
 
         /* Receive file transfer initiation cue. */
         if (!strncmp(buffer, "Initiating", 10)) {
             fp = fopen(filename, "w");
-            printf("+--------------------------+\n"
-                   "| Initiating file transfer |\n"
-                   "+--------------------------+\n");
+            printf(
+                "+--------------------------+\n"
+                "| Initiating file transfer |\n"
+                "+--------------------------+\n");
 
             /* Receive file from the server in chunks. */
-            while(1) {
+            while (1) {
                 bzero(buffer, 10);
                 bytes_read = safe_read(sockfd, buffer);
 
                 if (bytes_read < BUFSIZE) {
-                    if (strcmp(buffer, ""))
-                        safe_write(buffer, bytes_read, fp);
+                    if (strcmp(buffer, "")) safe_write(buffer, bytes_read, fp);
                     break;
                 } else
                     safe_write(buffer, bytes_read, fp);
             }
 
-            fclose(fp);     /* Flush the stream. */
-            printf("+------------------------+\n"
-                   "| File transfer complete |\n"
-                   "+------------------------+\n");
+            fclose(fp); /* Flush the stream. */
+            printf(
+                "+------------------------+\n"
+                "| File transfer complete |\n"
+                "+------------------------+\n");
         } else
             printf("%s", buffer);
     } else
         printf("%s", buffer);
 }
 
-int
-main(int argc, char **argv)
-{
-    int  pid;
-    int  server_port;
-    int  wstatus;
+int main(int argc, char **argv) {
+    int pid;
+    int server_port;
+    int wstatus;
     char server_ip[16];
     char password[256];
     char username[256];
@@ -133,12 +124,13 @@ main(int argc, char **argv)
         opt_file = 1;
         printf("%s\n", filename);
     } else {
-        fprintf(stderr, "Usage: ./client username:password@<server_ip> -p <port> -f <filename>\n");
+        fprintf(stderr,
+                "Usage: ./client username:password@<server_ip> -p <port> -f "
+                "<filename>\n");
         exit(EXIT_FAILURE);
     }
 
-    if (!strcmp(argv[2], "-p"))
-        server_port = atoi(argv[3]);
+    if (!strcmp(argv[2], "-p")) server_port = atoi(argv[3]);
 
     /* Extract username, password and server IP from argv[1]. */
     int i = 0;
@@ -160,7 +152,7 @@ main(int argc, char **argv)
 
     j = 0;
     bzero(server_ip, sizeof(server_ip));
-    while(argv[1][i] != '\0') {
+    while (argv[1][i] != '\0') {
         server_ip[j] = argv[1][i];
         i++;
         j++;
@@ -175,8 +167,8 @@ main(int argc, char **argv)
          * This is the child process. It establishes a connection
          * with the server while parent process 'wait()'s on it.
          */
-        handle_server_connection(server_port, server_ip,
-                                 username, password, filename);
+        handle_server_connection(server_port, server_ip, username, password,
+                                 filename);
         close_sock(sockfd, "server");
     } else {
         /*
